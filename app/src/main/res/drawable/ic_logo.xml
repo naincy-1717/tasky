@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Black Background -->
+    <path
+        android:fillColor="#121212"
+        android:pathData="M24,0 L84,0 A24,24 0,0 1,108 24 L108,84 A24,24 0,0 1,84 108 L24,108 A24,24 0,0 1,0 84 L0,24 A24,24 0,0 1,24 0 Z"/>
+    <!-- Purple Checkmark -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#BB86FC"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M34,54 L48,68 L74,38"/>
+</vector>
