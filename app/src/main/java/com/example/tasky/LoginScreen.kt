@@ -19,7 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.text.input.VisualTransformation
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit = {}) {
+fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
     var email by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -157,14 +157,14 @@ fun LoginScreen(onLoginSuccess: () -> Unit = {}) {
                 if (sharedPreferences.contains(cleanEmail)) {
                     val storedPassword = sharedPreferences.getString(cleanEmail, null)
                     if (storedPassword == password) {
-                        onLoginSuccess()
+                        onLoginSuccess(email)
                     } else {
                         errorMessage = "Incorrect password for this email!"
                     }
                 } else {
                     // Save email + unique password permanently to device storage on first creation
                     sharedPreferences.edit().putString(cleanEmail, password).apply()
-                    onLoginSuccess()
+                    onLoginSuccess(email)
                 }
             },
             modifier = Modifier

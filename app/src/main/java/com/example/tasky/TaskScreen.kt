@@ -1,4 +1,4 @@
-package com.example.tasky
+package com.example.tasky // Ensure this matches your package
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,22 +10,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-data class TaskItem(
-    val id: Int,
-    val title: String,
-    val isDone: Boolean = false
-)
+import kotlinx.coroutines.launch
 
 @Composable
-fun TaskScreen() {
-    var tasks by remember { mutableStateOf(listOf<TaskItem>()) }
+fun TaskScreen(userEmail: String = "default_user") {
+    val context = LocalContext.current
+
+    // Connect to the database and DAO
+    val dao = remember { AppDatabase.getDatabase(context).taskDao() }
+
+    // Coroutine scope is needed to run database tasks in the background
+    val coroutineScope = rememberCoroutineScope()
+
+    // Collect tasks from Room database in real-time
+    val tasks by dao.getTasksByUser(userEmail).collectAsState(initial = emptyList())
     var newTaskText by remember { mutableStateOf("") }
-    var nextId by remember { mutableIntStateOf(1) }
 
     // Color Palette
     val darkBackground = Color(0xFF121212)
@@ -41,7 +45,6 @@ fun TaskScreen() {
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Screen Title
         Text(
             text = "My Tasks",
             color = neonPurple,
@@ -49,9 +52,14 @@ fun TaskScreen() {
             fontWeight = FontWeight.Bold
         )
 
+        Text(
+            text = "Logged in as: $userEmail",
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Add Task Input Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -75,8 +83,22 @@ fun TaskScreen() {
             Button(
                 onClick = {
                     if (newTaskText.isNotBlank()) {
-                        tasks = tasks + TaskItem(id = nextId++, title = newTaskText)
+                        // 1. Capture the exact text right now
+                        val textToSave = newTaskText
+
+                        // 2. Clear the UI text box instantly
                         newTaskText = ""
+
+                        // 3. Send the captured text to the database
+                        coroutineScope.launch {
+                            dao.insertTask(
+                                TaskEntity(
+                                    title = textToSave,
+                                    isDone = false,
+                                    userEmail = userEmail
+                                )
+                            )
+                        }
                     }
                 },
                 modifier = Modifier.height(56.dp),
@@ -89,7 +111,6 @@ fun TaskScreen() {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Task List
         if (tasks.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -111,12 +132,12 @@ fun TaskScreen() {
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Checkbox: cuts through text when checked
                             Checkbox(
                                 checked = task.isDone,
                                 onCheckedChange = { isChecked ->
-                                    tasks = tasks.map {
-                                        if (it.id == task.id) it.copy(isDone = isChecked) else it
+                                    // Update database when checked/unchecked
+                                    coroutineScope.launch {
+                                        dao.updateTask(task.copy(isDone = isChecked))
                                     }
                                 },
                                 colors = CheckboxDefaults.colors(
@@ -126,7 +147,6 @@ fun TaskScreen() {
                                 )
                             )
 
-                            // Task Text (strikes through when isDone is true)
                             Text(
                                 text = task.title,
                                 color = if (task.isDone) Color.Gray else Color.White,
@@ -137,10 +157,12 @@ fun TaskScreen() {
                                     .padding(start = 8.dp)
                             )
 
-                            // Cross Button: Deletes the task
                             IconButton(
                                 onClick = {
-                                    tasks = tasks.filter { it.id != task.id }
+                                    // Delete from database
+                                    coroutineScope.launch {
+                                        dao.deleteTask(task)
+                                    }
                                 }
                             ) {
                                 Text(
