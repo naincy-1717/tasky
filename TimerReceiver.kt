@@ -11,13 +11,11 @@ import android.os.VibratorManager
 
 class TimerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        // Play system notification/alarm sound (loud popping/alarm chime)
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val ringtone = RingtoneManager.getRingtone(context, soundUri)
         ringtone?.play()
 
-        // Haptic feedback / vibration
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
             vibratorManager.defaultVibrator
