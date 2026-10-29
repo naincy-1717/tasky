@@ -157,14 +157,14 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                 if (sharedPreferences.contains(cleanEmail)) {
                     val storedPassword = sharedPreferences.getString(cleanEmail, null)
                     if (storedPassword == password) {
-                        onLoginSuccess(email)
+                        onLoginSuccess(cleanEmail)
                     } else {
                         errorMessage = "Incorrect password for this email!"
                     }
                 } else {
                     // Save email + unique password permanently to device storage on first creation
                     sharedPreferences.edit().putString(cleanEmail, password).apply()
-                    onLoginSuccess(email)
+                    onLoginSuccess(cleanEmail)
                 }
             },
             modifier = Modifier
