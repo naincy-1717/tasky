@@ -15,18 +15,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.IconButton
-import androidx.compose.ui.text.input.VisualTransformation
 
 @Composable
 fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
-    var email by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Persistent storage on the device
+    // Persistent storage on device
     val context = LocalContext.current
     val sharedPreferences = remember {
         context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE)
@@ -55,7 +52,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Name Input Field
+        // Name Field
         OutlinedTextField(
             value = name,
             onValueChange = {
@@ -75,12 +72,12 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Email Input Field
+        // Email Field
         OutlinedTextField(
             value = email,
             onValueChange = {
                 email = it
-                errorMessage = null // Clear error when typing
+                errorMessage = null
             },
             label = { Text("Email", color = lightGray) },
             modifier = Modifier.fillMaxWidth(),
@@ -95,23 +92,15 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password Input Field
+        // Password Field
         OutlinedTextField(
             value = password,
             onValueChange = {
                 password = it
-                errorMessage = null // Clear error when typing
+                errorMessage = null
             },
             label = { Text("Password", color = lightGray) },
-            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                    Text(
-                        text = if (isPasswordVisible) "👀" else "🙈",
-                        fontSize = 18.sp
-                    )
-                }
-            },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = neonPurple,
@@ -122,7 +111,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
             singleLine = true
         )
 
-        // Error Message Display
+        // Error Display
         if (errorMessage != null) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
@@ -153,7 +142,12 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                     return@Button
                 }
 
-                // 2. Persistent Password Authentication
+                // Save user name if provided
+                if (name.isNotBlank()) {
+                    sharedPreferences.edit().putString("${cleanEmail}_name", name.trim()).apply()
+                }
+
+                // 2. Password Check & Registration
                 if (sharedPreferences.contains(cleanEmail)) {
                     val storedPassword = sharedPreferences.getString(cleanEmail, null)
                     if (storedPassword == password) {
@@ -162,7 +156,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                         errorMessage = "Incorrect password for this email!"
                     }
                 } else {
-                    // Save email + unique password permanently to device storage on first creation
+                    // Register email + password
                     sharedPreferences.edit().putString(cleanEmail, password).apply()
                     onLoginSuccess(cleanEmail)
                 }
