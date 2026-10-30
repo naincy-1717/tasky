@@ -1,4 +1,4 @@
-package com.example.tasky // Ensure this matches your package
+package com.example.tasky
 
 import android.content.Context
 import androidx.compose.foundation.background
@@ -24,21 +24,40 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import java.util.Calendar
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
+data class TaskItem(
+    val id: Int,
+    val title: String,
+    val isDone: Boolean = false
+)
 
 @Composable
 fun TaskScreen(userEmail: String = "default_user") {
     val context = LocalContext.current
+    val prefs = remember(userEmail) {
+        context.getSharedPreferences("TaskyTasks_$userEmail", Context.MODE_PRIVATE)
+    }
 
-    // Connect to the database and DAO
-    val dao = remember { AppDatabase.getDatabase(context).taskDao() }
+    // Helper to load user's saved tasks
+    fun loadUserTasks(): List<TaskItem> {
+        val savedSet = prefs.getStringSet("tasks_list", emptySet()) ?: emptySet()
+        return savedSet.mapNotNull { raw ->
+            val parts = raw.split("|||")
+            if (parts.size == 3) {
+                TaskItem(id = parts[0].toInt(), title = parts[1], isDone = parts[2].toBoolean())
+            } else null
+        }.sortedBy { it.id }
+    }
 
-    // Coroutine scope is needed to run database tasks in the background
-    val coroutineScope = rememberCoroutineScope()
+    // Helper to save user's tasks
+    fun saveUserTasks(taskList: List<TaskItem>) {
+        val stringSet = taskList.map { "${it.id}|||${it.title}|||${it.isDone}" }.toSet()
+        prefs.edit().putStringSet("tasks_list", stringSet).apply()
+    }
 
-    // Collect tasks from Room database in real-time
-    val tasks by dao.getTasksByUser(userEmail).collectAsState(initial = emptyList())
+    var tasks by remember { mutableStateOf(loadUserTasks()) }
     var newTaskText by remember { mutableStateOf("") }
+    var nextId by remember { mutableIntStateOf((tasks.maxOfOrNull { it.id } ?: 0) + 1) }
 
     // Active pop-up screen (Calendar, Timer, Stopwatch, Account)
     var selectedPopupScreen by remember { mutableStateOf<String?>(null) }
@@ -160,22 +179,10 @@ fun TaskScreen(userEmail: String = "default_user") {
                 Button(
                     onClick = {
                         if (newTaskText.isNotBlank()) {
-                            // 1. Capture the exact text right now
-                            val textToSave = newTaskText
-
-                            // 2. Clear the UI text box instantly
+                            val updatedList = tasks + TaskItem(id = nextId++, title = newTaskText)
+                            tasks = updatedList
+                            saveUserTasks(updatedList)
                             newTaskText = ""
-
-                            // 3. Send the captured text to the database
-                            coroutineScope.launch {
-                                dao.insertTask(
-                                    TaskEntity(
-                                        title = textToSave,
-                                        isDone = false,
-                                        userEmail = userEmail
-                                    )
-                                )
-                            }
                         }
                     },
                     modifier = Modifier.height(56.dp),
@@ -215,10 +222,11 @@ fun TaskScreen(userEmail: String = "default_user") {
                                     Checkbox(
                                         checked = task.isDone,
                                         onCheckedChange = { isChecked ->
-                                            // Update database when checked/unchecked
-                                            coroutineScope.launch {
-                                                dao.updateTask(task.copy(isDone = isChecked))
+                                            val updatedList = tasks.map {
+                                                if (it.id == task.id) it.copy(isDone = isChecked) else it
                                             }
+                                            tasks = updatedList
+                                            saveUserTasks(updatedList)
                                         },
                                         colors = CheckboxDefaults.colors(
                                             checkedColor = neonPurple,
@@ -241,10 +249,9 @@ fun TaskScreen(userEmail: String = "default_user") {
                                     // Delete Button
                                     IconButton(
                                         onClick = {
-                                            // Delete from database
-                                            coroutineScope.launch {
-                                                dao.deleteTask(task)
-                                            }
+                                            val updatedList = tasks.filter { it.id != task.id }
+                                            tasks = updatedList
+                                            saveUserTasks(updatedList)
                                         }
                                     ) {
                                         Text(
