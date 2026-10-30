@@ -1,5 +1,6 @@
 package com.example.tasky
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,18 +12,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             TASKYTheme {
-                var isLoggedIn by remember { mutableStateOf(false) }
-                var userEmail by remember { mutableStateOf("") }
+                val context = applicationContext
+                val sharedPreferences = context.getSharedPreferences("TaskyPrefs", Context.MODE_PRIVATE)
 
-                if (!isLoggedIn) {
-                    LoginScreen(
-                        onLoginSuccess = { email ->
-                            userEmail = email
-                            isLoggedIn = true
-                        }
-                    )
+                // Check if a user email is already saved in storage
+                val savedUser = sharedPreferences.getString("ACTIVE_USER", null)
+
+                // If savedUser has an email, this starts as that email (logged in). If null, they are logged out.
+                var loggedInUser by remember { mutableStateOf(savedUser) }
+
+                if (loggedInUser != null) {
+                    // Pass the saved email directly to the Room database via TaskScreen
+                    TaskScreen(userEmail = loggedInUser!!)
                 } else {
-                    TaskScreen(userEmail = userEmail)
+                    LoginScreen(onLoginSuccess = { email ->
+                        // 1. Save the email to the phone's storage instantly
+                        sharedPreferences.edit().putString("ACTIVE_USER", email).apply()
+
+                        // 2. Update the screen state to navigate to TaskScreen
+                        loggedInUser = email
+                    })
                 }
             }
         }
