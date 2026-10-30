@@ -3,6 +3,7 @@ package com.example.tasky
 import android.content.Context
 import android.util.Patterns
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -15,16 +16,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.platform.LocalFocusManager
 
 @Composable
 fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
+    var isSignUpMode by remember { mutableStateOf(false) } // Toggles between Login and Sign Up
+
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
 
     // Persistent storage on device
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val sharedPreferences = remember {
         context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE)
     }
@@ -44,7 +51,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Welcome to TASKY",
+            text = if (isSignUpMode) "Create an Account" else "Welcome Back",
             color = neonPurple,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold
@@ -52,25 +59,26 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Name Field
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                errorMessage = null
-            },
-            label = { Text("Name", color = lightGray) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = neonPurple,
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
+        // Name Field (Only visible during Sign Up)
+        if (isSignUpMode) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    errorMessage = null
+                },
+                label = { Text("Name", color = lightGray) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = neonPurple,
+                    unfocusedBorderColor = Color.Gray,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Email Field
         OutlinedTextField(
@@ -100,7 +108,16 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                 errorMessage = null
             },
             label = { Text("Password", color = lightGray) },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation =  if (isPasswordVisible) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                    Text(
+                        text = if (isPasswordVisible) "👁" else "🙈",
+                        fontSize = 18.sp
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = neonPurple,
@@ -124,12 +141,12 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // Enter Button
+        // Action Button
         Button(
             onClick = {
                 val cleanEmail = email.trim().lowercase()
 
-                // 1. Email Format Check
+                // 1. Basic Validations
                 val isValidEmail = cleanEmail.isNotEmpty() && Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()
 
                 if (!isValidEmail) {
@@ -142,23 +159,30 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                     return@Button
                 }
 
-                // Save user name if provided
-                if (name.isNotBlank()) {
-                    sharedPreferences.edit().putString("${cleanEmail}_name", name.trim()).apply()
-                }
-
-                // 2. Password Check & Registration
-                if (sharedPreferences.contains(cleanEmail)) {
-                    val storedPassword = sharedPreferences.getString(cleanEmail, null)
-                    if (storedPassword == password) {
-                        onLoginSuccess(cleanEmail)
+                // 2. Sign Up Logic
+                if (isSignUpMode) {
+                    if (sharedPreferences.contains(cleanEmail)) {
+                        errorMessage = "Account already exists! Please log in."
                     } else {
-                        errorMessage = "Incorrect password for this email!"
+                        if (name.isNotBlank()) {
+                            sharedPreferences.edit().putString("${cleanEmail}_name", name.trim()).apply()
+                        }
+                        sharedPreferences.edit().putString(cleanEmail, password).apply()
+                        onLoginSuccess(cleanEmail)
                     }
-                } else {
-                    // Register email + password
-                    sharedPreferences.edit().putString(cleanEmail, password).apply()
-                    onLoginSuccess(cleanEmail)
+                }
+                // 3. Login Logic
+                else {
+                    if (!sharedPreferences.contains(cleanEmail)) {
+                        errorMessage = "Account not found! Please sign up first."
+                    } else {
+                        val storedPassword = sharedPreferences.getString(cleanEmail, null)
+                        if (storedPassword == password) {
+                            onLoginSuccess(cleanEmail)
+                        } else {
+                            errorMessage = "Incorrect password!"
+                        }
+                    }
                 }
             },
             modifier = Modifier
@@ -168,10 +192,42 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = "Enter",
+                text = if (isSignUpMode) "Sign Up" else "Log In",
                 color = darkBackground,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Toggle text at the bottom
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = if (isSignUpMode) "Already have an account? " else "Don't have an account? ",
+                color = lightGray,
+                fontSize = 14.sp
+            )
+            Text(
+                text = if (isSignUpMode) "Log In" else "Sign Up",
+                color = neonPurple,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable {
+                    //Release active cursor & hide the keyboard
+                    focusManager.clearFocus()
+
+                    // Switch modes and clear any old errors
+                    isSignUpMode = !isSignUpMode
+                    name = ""
+                    email = ""
+                    password = ""
+                    isPasswordVisible = false
+                    errorMessage = null
+                }
             )
         }
     }

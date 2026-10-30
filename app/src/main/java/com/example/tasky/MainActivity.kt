@@ -23,7 +23,12 @@ class MainActivity : ComponentActivity() {
 
                 if (loggedInUser != null) {
                     // Pass the saved email directly to the Room database via TaskScreen
-                    TaskScreen(userEmail = loggedInUser!!)
+                    TaskScreen(
+                        userEmail = loggedInUser!!,
+                        onLogout = {
+                            sharedPreferences.edit().remove("ACTIVE_USER").apply()
+                            loggedInUser = null // kick the UI back to LoginScreen
+                        })
                 } else {
                     LoginScreen(onLoginSuccess = { email ->
                         // 1. Save the email to the phone's storage instantly

@@ -21,7 +21,8 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun AccountDialog(
     userEmail: String,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
     val sharedPreferences = remember {
@@ -167,7 +168,7 @@ fun AccountDialog(
 
                 // Log Out Button
                 Button(
-                    onClick = onDismissRequest,
+                    onClick = onLogout,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),

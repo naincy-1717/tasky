@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 @Composable
-fun TaskScreen(userEmail: String = "default_user") {
+fun TaskScreen(userEmail: String, onLogout: () -> Unit) {
     val context = LocalContext.current
 
     // 1. Connect Room Database instead of SharedPreferences
@@ -242,7 +242,11 @@ fun TaskScreen(userEmail: String = "default_user") {
                 "Calendar" -> CalendarDialog(onDismissRequest = { selectedPopupScreen = null })
                 "Timer" -> TimerDialog(onDismissRequest = { selectedPopupScreen = null })
                 "Stopwatch" -> StopwatchDialog(onDismissRequest = { selectedPopupScreen = null })
-                "Account" -> AccountDialog(userEmail = userEmail, onDismissRequest = { selectedPopupScreen = null })
+                "Account" -> AccountDialog(
+                    userEmail = userEmail,
+                    onDismissRequest = { selectedPopupScreen = null },
+                    onLogout = onLogout
+                )
             }
         }
     }
