@@ -1,7 +1,8 @@
 package com.example.tasky
 
 import android.content.Context
-import android.util.Patterns
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,29 +12,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+fun LoginScreen(
+    onLoginSuccess: (String) -> Unit = {}
+) {
+    var emailInput by remember { mutableStateOf("") }
+    var passwordInput by remember { mutableStateOf("") }
 
-    // Persistent storage on device
     val context = LocalContext.current
-    val sharedPreferences = remember {
-        context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE)
-    }
+    val prefs = remember { context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE) }
 
-    // Color Palette
     val darkBackground = Color(0xFF121212)
+    val cardBackground = Color(0xFF1E1E1E)
     val neonPurple = Color(0xFFBB86FC)
     val lightGray = Color(0xFFE0E0E0)
-    val errorRed = Color(0xFFCF6679)
 
     Column(
         modifier = Modifier
@@ -43,136 +41,87 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Welcome to TASKY",
-            color = neonPurple,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Name Field
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                errorMessage = null
-            },
-            label = { Text("Name", color = lightGray) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = neonPurple,
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Email Field
-        OutlinedTextField(
-            value = email,
-            onValueChange = {
-                email = it
-                errorMessage = null
-            },
-            label = { Text("Email", color = lightGray) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = neonPurple,
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Password Field
-        OutlinedTextField(
-            value = password,
-            onValueChange = {
-                password = it
-                errorMessage = null
-            },
-            label = { Text("Password", color = lightGray) },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = neonPurple,
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            singleLine = true
-        )
-
-        // Error Display
-        if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = errorMessage!!,
-                color = errorRed,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // Enter Button
-        Button(
-            onClick = {
-                val cleanEmail = email.trim().lowercase()
-
-                // 1. Email Format Check
-                val isValidEmail = cleanEmail.isNotEmpty() && Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()
-
-                if (!isValidEmail) {
-                    errorMessage = "Invalid email format! (e.g., name@gmail.com)"
-                    return@Button
-                }
-
-                if (password.isBlank()) {
-                    errorMessage = "Password cannot be empty"
-                    return@Button
-                }
-
-                // Save user name if provided
-                if (name.isNotBlank()) {
-                    sharedPreferences.edit().putString("${cleanEmail}_name", name.trim()).apply()
-                }
-
-                // 2. Password Check & Registration
-                if (sharedPreferences.contains(cleanEmail)) {
-                    val storedPassword = sharedPreferences.getString(cleanEmail, null)
-                    if (storedPassword == password) {
-                        onLoginSuccess(cleanEmail)
-                    } else {
-                        errorMessage = "Incorrect password for this email!"
-                    }
-                } else {
-                    // Register email + password
-                    sharedPreferences.edit().putString(cleanEmail, password).apply()
-                    onLoginSuccess(cleanEmail)
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = neonPurple),
-            shape = RoundedCornerShape(12.dp)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = cardBackground),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "Enter",
-                color = darkBackground,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_logo),
+                    contentDescription = "Tasky Logo",
+                    modifier = Modifier.size(72.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("Welcome to Tasky", color = neonPurple, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                OutlinedTextField(
+                    value = emailInput,
+                    onValueChange = { emailInput = it },
+                    label = { Text("Email", color = lightGray) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = neonPurple,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = { passwordInput = it },
+                    label = { Text("Password", color = lightGray) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = neonPurple,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = {
+                        val cleanEmail = emailInput.trim().lowercase()
+                        val cleanPass = passwordInput.trim()
+
+                        if (cleanEmail.isBlank() || cleanPass.isBlank()) {
+                            Toast.makeText(context, "Please enter email & password", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val savedPassword = prefs.getString(cleanEmail, null)
+                            if (savedPassword == null) {
+                                prefs.edit().putString(cleanEmail, cleanPass).apply()
+                                Toast.makeText(context, "Account created!", Toast.LENGTH_SHORT).show()
+                                onLoginSuccess(cleanEmail)
+                            } else if (savedPassword == cleanPass) {
+                                onLoginSuccess(cleanEmail)
+                            } else {
+                                Toast.makeText(context, "Incorrect password!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = neonPurple),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Enter", color = darkBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

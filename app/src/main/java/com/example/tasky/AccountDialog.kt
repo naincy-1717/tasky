@@ -16,181 +16,88 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 
 @Composable
 fun AccountDialog(
     userEmail: String,
+    onLogout: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
     val context = LocalContext.current
-    val sharedPreferences = remember {
-        context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE)
-    }
+    val prefs = remember { context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE) }
 
-    // Load saved Name, Phone, and Password for this user
-    val savedName = remember { sharedPreferences.getString("${userEmail}_name", "New User") ?: "New User" }
-    val savedPhone = remember { sharedPreferences.getString("${userEmail}_phone", "") ?: "" }
-    val savedPassword = remember { sharedPreferences.getString(userEmail, "********") ?: "********" }
+    val savedName = remember { prefs.getString("${userEmail}_name", "New User") ?: "New User" }
+    val savedPhone = remember { prefs.getString("${userEmail}_phone", "") ?: "" }
+    val savedPassword = remember { prefs.getString(userEmail, "********") ?: "********" }
 
     var name by remember { mutableStateOf(savedName) }
     var phone by remember { mutableStateOf(savedPhone) }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
-    val darkBackground = Color(0xFF121212)
+    val userInitial = userEmail.firstOrNull()?.uppercase() ?: "U"
     val cardBackground = Color(0xFF1E1E1E)
     val neonPurple = Color(0xFFBB86FC)
+    val darkBackground = Color(0xFF121212)
     val lightGray = Color(0xFFE0E0E0)
-    val errorRed = Color(0xFFCF6679)
 
-    val userInitial = userEmail.firstOrNull()?.uppercase() ?: "U"
-
-    Dialog(onDismissRequest = onDismissRequest) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = cardBackground),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                // Top Left Circle with User Initial
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(neonPurple, shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = userInitial,
-                            color = darkBackground,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        containerColor = cardBackground,
+        title = { Text("Account Profile", color = neonPurple, fontWeight = FontWeight.Bold, fontSize = 22.sp) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(modifier = Modifier.size(54.dp).background(neonPurple, CircleShape), contentAlignment = Alignment.Center) {
+                    Text(userInitial, color = darkBackground, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Name Field (Loaded from Login & Saved on Change)
+                Spacer(modifier = Modifier.height(14.dp))
                 OutlinedTextField(
                     value = name,
-                    onValueChange = {
-                        name = it
-                        sharedPreferences.edit().putString("${userEmail}_name", it).apply()
-                    },
+                    onValueChange = { name = it; prefs.edit().putString("${userEmail}_name", it).apply() },
                     label = { Text("Name", color = lightGray) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = neonPurple,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = neonPurple, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.White, unfocusedTextColor = Color.White)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Email Field (Read-only)
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = userEmail,
-                    onValueChange = { },
-                    label = { Text("Email", color = lightGray) },
+                    onValueChange = {},
                     readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = neonPurple,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedTextColor = Color.Gray,
-                        unfocusedTextColor = Color.Gray
-                    ),
-                    singleLine = true
+                    label = { Text("Email", color = lightGray) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = neonPurple, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.Gray, unfocusedTextColor = Color.Gray)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Phone Field (Saves to SharedPreferences on entry)
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = {
-                        phone = it
-                        sharedPreferences.edit().putString("${userEmail}_phone", it).apply()
-                    },
+                    onValueChange = { phone = it; prefs.edit().putString("${userEmail}_phone", it).apply() },
                     label = { Text("Phone", color = lightGray) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = neonPurple,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = neonPurple, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.White, unfocusedTextColor = Color.White)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Password Field with See (Eye) Toggle Button
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = savedPassword,
-                    onValueChange = { },
+                    onValueChange = {},
                     readOnly = true,
                     label = { Text("Password", color = lightGray) },
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Text(
-                                text = if (isPasswordVisible) "👁" else "🙈",
-                                fontSize = 18.sp
-                            )
+                            Text(if (isPasswordVisible) "👁" else "🙈", fontSize = 16.sp)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = neonPurple,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = neonPurple, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.White, unfocusedTextColor = Color.White)
                 )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Log Out Button
-                Button(
-                    onClick = onDismissRequest,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = errorRed),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Log Out",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                TextButton(
-                    onClick = onDismissRequest,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = lightGray)
-                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismissRequest, colors = ButtonDefaults.buttonColors(containerColor = neonPurple)) {
+                Text("Done", color = darkBackground, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onLogout) {
+                Text("Log Out", color = Color(0xFFCF6679), fontWeight = FontWeight.Bold)
             }
         }
-    }
+    )
 }

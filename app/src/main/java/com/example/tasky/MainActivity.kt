@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             TASKYTheme {
                 val context = applicationContext
-                val sharedPreferences = context.getSharedPreferences("TaskyPrefs", Context.MODE_PRIVATE)
+                val sharedPreferences = context.getSharedPreferences("TaskyPrefs", MODE_PRIVATE)
 
                 // Check if a user email is already saved in storage
                 val savedUser = sharedPreferences.getString("ACTIVE_USER", null)
@@ -23,7 +23,13 @@ class MainActivity : ComponentActivity() {
 
                 if (loggedInUser != null) {
                     // Pass the saved email directly to the Room database via TaskScreen
-                    TaskScreen(userEmail = loggedInUser!!)
+                    TaskScreen(
+                        userEmail = loggedInUser!!,
+                        onLogout = {
+                            sharedPreferences.edit().remove("ACTIVE_USER").apply()
+                            loggedInUser = null
+                        }
+                    )
                 } else {
                     LoginScreen(onLoginSuccess = { email ->
                         // 1. Save the email to the phone's storage instantly

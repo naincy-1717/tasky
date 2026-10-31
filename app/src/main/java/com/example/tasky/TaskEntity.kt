@@ -1,4 +1,4 @@
-package com.example.tasky // Make sure this matches your actual package name
+package com.example.tasky
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -9,5 +9,10 @@ data class TaskEntity(
     val id: Int = 0,
     val title: String,
     val isDone: Boolean = false,
-    val userEmail: String // This ensures we can filter tasks by which user is logged in
+    val isTomorrow: Boolean = false,
+    val userEmail: String,
+    val time: String = "",
+    val date: String = "",
+    val repeat: String = "",
+    val isImportant: Boolean = false
 )
