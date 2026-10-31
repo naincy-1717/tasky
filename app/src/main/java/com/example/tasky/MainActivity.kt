@@ -27,9 +27,14 @@ class MainActivity : ComponentActivity() {
                         userEmail = loggedInUser!!,
                         onLogout = {
                             sharedPreferences.edit().remove("ACTIVE_USER").apply()
+<<<<<<< HEAD
                             loggedInUser = null
                         }
                     )
+=======
+                            loggedInUser = null // kick the UI back to LoginScreen
+                        })
+>>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
                 } else {
                     LoginScreen(onLoginSuccess = { email ->
                         // 1. Save the email to the phone's storage instantly

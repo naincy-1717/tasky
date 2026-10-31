@@ -20,8 +20,13 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun AccountDialog(
     userEmail: String,
+<<<<<<< HEAD
     onLogout: () -> Unit,
     onDismissRequest: () -> Unit
+=======
+    onDismissRequest: () -> Unit,
+    onLogout: () -> Unit
+>>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE) }
@@ -87,6 +92,7 @@ fun AccountDialog(
                     },
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = neonPurple, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.White, unfocusedTextColor = Color.White)
                 )
+<<<<<<< HEAD
             }
         },
         confirmButton = {
@@ -97,6 +103,36 @@ fun AccountDialog(
         dismissButton = {
             TextButton(onClick = onLogout) {
                 Text("Log Out", color = Color(0xFFCF6679), fontWeight = FontWeight.Bold)
+=======
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Log Out Button
+                Button(
+                    onClick = onLogout,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = errorRed),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Log Out",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Close", color = lightGray)
+                }
+>>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
             }
         }
     )
