@@ -1,6 +1,5 @@
 package com.example.tasky
 
-import android.content.Context
 import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,30 +10,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.platform.LocalFocusManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 
 @Composable
 fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
-    var isSignUpMode by remember { mutableStateOf(false) } // Toggles between Login and Sign Up
+    var isSignUpMode by remember { mutableStateOf(false) }
 
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
-    // Persistent storage on device
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val sharedPreferences = remember {
-        context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE)
-    }
+    val auth = remember { FirebaseAuth.getInstance() }
 
     // Color Palette
     val darkBackground = Color(0xFF121212)
@@ -108,8 +105,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                 errorMessage = null
             },
             label = { Text("Password", color = lightGray) },
-            visualTransformation =  if (isPasswordVisible) VisualTransformation.None
-                    else PasswordVisualTransformation(),
+            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                     Text(
@@ -146,57 +142,73 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
             onClick = {
                 val cleanEmail = email.trim().lowercase()
 
-                // 1. Basic Validations
+                // Basic validation
                 val isValidEmail = cleanEmail.isNotEmpty() && Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()
-
                 if (!isValidEmail) {
                     errorMessage = "Invalid email format! (e.g., name@gmail.com)"
                     return@Button
                 }
 
-                if (password.isBlank()) {
-                    errorMessage = "Password cannot be empty"
+                if (password.length < 6) {
+                    errorMessage = "Password must be at least 6 characters"
                     return@Button
                 }
 
-                // 2. Sign Up Logic
+                isLoading = true
+                errorMessage = null
+
                 if (isSignUpMode) {
-                    if (sharedPreferences.contains(cleanEmail)) {
-                        errorMessage = "Account already exists! Please log in."
-                    } else {
-                        if (name.isNotBlank()) {
-                            sharedPreferences.edit().putString("${cleanEmail}_name", name.trim()).apply()
-                        }
-                        sharedPreferences.edit().putString(cleanEmail, password).apply()
-                        onLoginSuccess(cleanEmail)
-                    }
-                }
-                // 3. Login Logic
-                else {
-                    if (!sharedPreferences.contains(cleanEmail)) {
-                        errorMessage = "Account not found! Please sign up first."
-                    } else {
-                        val storedPassword = sharedPreferences.getString(cleanEmail, null)
-                        if (storedPassword == password) {
+                    // Firebase Cloud Sign Up
+                    auth.createUserWithEmailAndPassword(cleanEmail, password)
+                        .addOnSuccessListener { result ->
+                            isLoading = false
+                            val user = result.user
+                            if (name.isNotBlank() && user != null) {
+                                val profileUpdate = userProfileChangeRequest {
+                                    displayName = name.trim()
+                                }
+                                user.updateProfile(profileUpdate)
+                            }
                             onLoginSuccess(cleanEmail)
-                        } else {
-                            errorMessage = "Incorrect password!"
                         }
-                    }
+                        .addOnFailureListener { e ->
+                            isLoading = false
+                            errorMessage = e.localizedMessage ?: "Sign up failed"
+                        }
+                } else {
+                    // Firebase Cloud Log In
+                    auth.signInWithEmailAndPassword(cleanEmail, password)
+                        .addOnSuccessListener {
+                            isLoading = false
+                            onLoginSuccess(cleanEmail)
+                        }
+                        .addOnFailureListener { e ->
+                            isLoading = false
+                            errorMessage = e.localizedMessage ?: "Login failed"
+                        }
                 }
             },
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = neonPurple),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text(
-                text = if (isSignUpMode) "Sign Up" else "Log In",
-                color = darkBackground,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = darkBackground,
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.5.dp
+                )
+            } else {
+                Text(
+                    text = if (isSignUpMode) "Sign Up" else "Log In",
+                    color = darkBackground,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -217,10 +229,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable {
-                    //Release active cursor & hide the keyboard
                     focusManager.clearFocus()
-
-                    // Switch modes and clear any old errors
                     isSignUpMode = !isSignUpMode
                     name = ""
                     email = ""
