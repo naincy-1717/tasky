@@ -1,14 +1,8 @@
 package com.example.tasky
 
-<<<<<<< HEAD
 import android.content.Context
-import android.widget.Toast
-import androidx.compose.foundation.Image
-=======
 import android.util.Patterns
->>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -16,49 +10,33 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-<<<<<<< HEAD
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-=======
-import androidx.compose.ui.platform.LocalFocusManager
->>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.userProfileChangeRequest
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.input.VisualTransformation
 
 @Composable
-<<<<<<< HEAD
-fun LoginScreen(
-    onLoginSuccess: (String) -> Unit = {}
-) {
-    var emailInput by remember { mutableStateOf("") }
-    var passwordInput by remember { mutableStateOf("") }
-
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE) }
-=======
 fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
-    var isSignUpMode by remember { mutableStateOf(false) }
-
-    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     var isPasswordVisible by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val focusManager = LocalFocusManager.current
-    val auth = remember { FirebaseAuth.getInstance() }
->>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
+    // Persistent storage on the device
+    val context = LocalContext.current
+    val sharedPreferences = remember {
+        context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE)
+    }
 
+    // Color Palette
     val darkBackground = Color(0xFF121212)
-    val cardBackground = Color(0xFF1E1E1E)
     val neonPurple = Color(0xFFBB86FC)
     val lightGray = Color(0xFFE0E0E0)
+    val errorRed = Color(0xFFCF6679)
 
     Column(
         modifier = Modifier
@@ -68,91 +46,8 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-<<<<<<< HEAD
-        Card(
-            colors = CardDefaults.cardColors(containerColor = cardBackground),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_logo),
-                    contentDescription = "Tasky Logo",
-                    modifier = Modifier.size(72.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text("Welcome to Tasky", color = neonPurple, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                OutlinedTextField(
-                    value = emailInput,
-                    onValueChange = { emailInput = it },
-                    label = { Text("Email", color = lightGray) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = neonPurple,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = passwordInput,
-                    onValueChange = { passwordInput = it },
-                    label = { Text("Password", color = lightGray) },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = neonPurple,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        val cleanEmail = emailInput.trim().lowercase()
-                        val cleanPass = passwordInput.trim()
-
-                        if (cleanEmail.isBlank() || cleanPass.isBlank()) {
-                            Toast.makeText(context, "Please enter email & password", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val savedPassword = prefs.getString(cleanEmail, null)
-                            if (savedPassword == null) {
-                                prefs.edit().putString(cleanEmail, cleanPass).apply()
-                                Toast.makeText(context, "Account created!", Toast.LENGTH_SHORT).show()
-                                onLoginSuccess(cleanEmail)
-                            } else if (savedPassword == cleanPass) {
-                                onLoginSuccess(cleanEmail)
-                            } else {
-                                Toast.makeText(context, "Incorrect password!", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = neonPurple),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Enter", color = darkBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-=======
         Text(
-            text = if (isSignUpMode) "Create an Account" else "Welcome Back",
+            text = "Welcome to TASKY",
             color = neonPurple,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold
@@ -160,33 +55,32 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Name Field (Only visible during Sign Up)
-        if (isSignUpMode) {
-            OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    name = it
-                    errorMessage = null
-                },
-                label = { Text("Name", color = lightGray) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = neonPurple,
-                    unfocusedBorderColor = Color.Gray,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        // Name Input Field
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                errorMessage = null
+            },
+            label = { Text("Name", color = lightGray) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = neonPurple,
+                unfocusedBorderColor = Color.Gray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            singleLine = true
+        )
 
-        // Email Field
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Email Input Field
         OutlinedTextField(
             value = email,
             onValueChange = {
                 email = it
-                errorMessage = null
+                errorMessage = null // Clear error when typing
             },
             label = { Text("Email", color = lightGray) },
             modifier = Modifier.fillMaxWidth(),
@@ -201,19 +95,19 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password Field
+        // Password Input Field
         OutlinedTextField(
             value = password,
             onValueChange = {
                 password = it
-                errorMessage = null
+                errorMessage = null // Clear error when typing
             },
             label = { Text("Password", color = lightGray) },
             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                     Text(
-                        text = if (isPasswordVisible) "👁" else "🙈",
+                        text = if (isPasswordVisible) "👀" else "🙈",
                         fontSize = 18.sp
                     )
                 }
@@ -228,7 +122,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
             singleLine = true
         )
 
-        // Error Display
+        // Error Message Display
         if (errorMessage != null) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
@@ -241,108 +135,50 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // Action Button
+        // Enter Button
         Button(
             onClick = {
                 val cleanEmail = email.trim().lowercase()
 
-                // Basic validation
+                // 1. Email Format Check
                 val isValidEmail = cleanEmail.isNotEmpty() && Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()
+
                 if (!isValidEmail) {
                     errorMessage = "Invalid email format! (e.g., name@gmail.com)"
                     return@Button
                 }
 
-                if (password.length < 6) {
-                    errorMessage = "Password must be at least 6 characters"
+                if (password.isBlank()) {
+                    errorMessage = "Password cannot be empty"
                     return@Button
                 }
 
-                isLoading = true
-                errorMessage = null
-
-                if (isSignUpMode) {
-                    // Firebase Cloud Sign Up
-                    auth.createUserWithEmailAndPassword(cleanEmail, password)
-                        .addOnSuccessListener { result ->
-                            isLoading = false
-                            val user = result.user
-                            if (name.isNotBlank() && user != null) {
-                                val profileUpdate = userProfileChangeRequest {
-                                    displayName = name.trim()
-                                }
-                                user.updateProfile(profileUpdate)
-                            }
-                            onLoginSuccess(cleanEmail)
-                        }
-                        .addOnFailureListener { e ->
-                            isLoading = false
-                            errorMessage = e.localizedMessage ?: "Sign up failed"
-                        }
+                // 2. Persistent Password Authentication
+                if (sharedPreferences.contains(cleanEmail)) {
+                    val storedPassword = sharedPreferences.getString(cleanEmail, null)
+                    if (storedPassword == password) {
+                        onLoginSuccess(cleanEmail)
+                    } else {
+                        errorMessage = "Incorrect password for this email!"
+                    }
                 } else {
-                    // Firebase Cloud Log In
-                    auth.signInWithEmailAndPassword(cleanEmail, password)
-                        .addOnSuccessListener {
-                            isLoading = false
-                            onLoginSuccess(cleanEmail)
-                        }
-                        .addOnFailureListener { e ->
-                            isLoading = false
-                            errorMessage = e.localizedMessage ?: "Login failed"
-                        }
+                    // Save email + unique password permanently to device storage on first creation
+                    sharedPreferences.edit().putString(cleanEmail, password).apply()
+                    onLoginSuccess(cleanEmail)
                 }
             },
-            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = neonPurple),
             shape = RoundedCornerShape(12.dp)
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = darkBackground,
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.5.dp
-                )
-            } else {
-                Text(
-                    text = if (isSignUpMode) "Sign Up" else "Log In",
-                    color = darkBackground,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Toggle text at the bottom
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
             Text(
-                text = if (isSignUpMode) "Already have an account? " else "Don't have an account? ",
-                color = lightGray,
-                fontSize = 14.sp
+                text = "Enter",
+                color = darkBackground,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
             )
-            Text(
-                text = if (isSignUpMode) "Log In" else "Sign Up",
-                color = neonPurple,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable {
-                    focusManager.clearFocus()
-                    isSignUpMode = !isSignUpMode
-                    name = ""
-                    email = ""
-                    password = ""
-                    isPasswordVisible = false
-                    errorMessage = null
-                }
-            )
->>>>>>> 7d451203a0abfa3b1b6f4b71ac9bc01e4b4d2651
         }
     }
 }
