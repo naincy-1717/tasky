@@ -2,6 +2,9 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+
+    //cloud storage
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -61,4 +64,10 @@ dependencies {
 
     // The KSP compiler that checks your database code for errors
     ksp("androidx.room:room-compiler:$room_version")
+    // 👈 Firebase BoM (Bill of Materials keeps all Firebase versions in sync)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+
+    // 👈 Firebase Authentication & Cloud Firestore
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
 }

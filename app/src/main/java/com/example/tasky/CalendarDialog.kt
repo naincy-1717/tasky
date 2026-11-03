@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -22,15 +21,7 @@ import androidx.compose.ui.window.Dialog
 import java.util.Calendar
 
 @Composable
-fun CalendarDialog(
-    onDismissRequest: () -> Unit
-) {
-    val darkBackground = Color(0xFF121212)
-    val cardBackground = Color(0xFF1E1E1E)
-    val lightBlockBackground = Color(0xFFF4F4F6)
-    val neonPurple = Color(0xFFBB86FC)
-    val darkPurple = Color(0xFF6750A4)
-
+fun CalendarDialog(onDismissRequest: () -> Unit) {
     val todayCal = remember { Calendar.getInstance() }
     val todayDay = remember { todayCal.get(Calendar.DAY_OF_MONTH) }
     val todayMonth = remember { todayCal.get(Calendar.MONTH) }
@@ -46,50 +37,31 @@ fun CalendarDialog(
     val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
     val daysOfWeek = listOf("S", "M", "T", "W", "T", "F", "S")
 
+    val cardBackground = Color(0xFF1E1E1E)
+    val neonPurple = Color(0xFFBB86FC)
+    val darkBackground = Color(0xFF121212)
+
     val (firstDayOfWeek, daysInMonth) = remember(selectedMonth, selectedYear) {
         val cal = Calendar.getInstance().apply {
             set(Calendar.YEAR, selectedYear)
             set(Calendar.MONTH, selectedMonth)
             set(Calendar.DAY_OF_MONTH, 1)
         }
-        val first = cal.get(Calendar.DAY_OF_WEEK) - 1
-        val max = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-        Pair(first, max)
+        Pair(cal.get(Calendar.DAY_OF_WEEK) - 1, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
     }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
         containerColor = cardBackground,
-        title = {
-            Text(
-                text = "Calendar",
-                color = neonPurple,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-            )
-        },
+        title = { Text("Calendar", color = neonPurple, fontWeight = FontWeight.Bold, fontSize = 22.sp) },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(lightBlockBackground, shape = RoundedCornerShape(16.dp))
-                    .padding(14.dp),
+                modifier = Modifier.fillMaxWidth().background(Color(0xFFF4F4F6), shape = RoundedCornerShape(16.dp)).padding(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(Color.White, shape = RoundedCornerShape(10.dp))
-                            .clickable {
-                                selectedDay = todayDay
-                                selectedMonth = todayMonth
-                                selectedYear = todayYear
-                            }
-                            .padding(vertical = 8.dp),
+                        modifier = Modifier.weight(1f).background(Color.White, RoundedCornerShape(10.dp)).clickable { selectedDay = todayDay; selectedMonth = todayMonth; selectedYear = todayYear }.padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -99,29 +71,21 @@ fun CalendarDialog(
                     }
 
                     Box(
-                        modifier = Modifier
-                            .weight(1.2f)
-                            .background(Color.White, shape = RoundedCornerShape(10.dp))
-                            .clickable { showMonthPicker = true }
-                            .padding(vertical = 8.dp),
+                        modifier = Modifier.weight(1.2f).background(Color.White, RoundedCornerShape(10.dp)).clickable { showMonthPicker = true }.padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("MONTH ▾", fontSize = 10.sp, color = darkPurple, fontWeight = FontWeight.Bold)
+                            Text("MONTH ▾", fontSize = 10.sp, color = neonPurple, fontWeight = FontWeight.Bold)
                             Text(monthNames.getOrElse(selectedMonth) { "" }, fontSize = 18.sp, color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     Box(
-                        modifier = Modifier
-                            .weight(1.1f)
-                            .background(Color.White, shape = RoundedCornerShape(10.dp))
-                            .clickable { showYearPicker = true }
-                            .padding(vertical = 8.dp),
+                        modifier = Modifier.weight(1.1f).background(Color.White, RoundedCornerShape(10.dp)).clickable { showYearPicker = true }.padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("YEAR ▾", fontSize = 10.sp, color = darkPurple, fontWeight = FontWeight.Bold)
+                            Text("YEAR ▾", fontSize = 10.sp, color = neonPurple, fontWeight = FontWeight.Bold)
                             Text("$selectedYear", fontSize = 18.sp, color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -129,13 +93,8 @@ fun CalendarDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    daysOfWeek.forEach { day ->
-                        Text(text = day, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                    }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                    daysOfWeek.forEach { day -> Text(text = day, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray) }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -145,10 +104,7 @@ fun CalendarDialog(
 
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     for (r in 0 until rows) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                             for (c in 0 until 7) {
                                 val dayNum = r * 7 + c - firstDayOfWeek + 1
                                 if (dayNum in 1..daysInMonth) {
@@ -160,35 +116,24 @@ fun CalendarDialog(
                                             .size(36.dp)
                                             .then(
                                                 when {
-                                                    isSelected -> Modifier
-                                                        .background(Color(0xFFE8DEF8), shape = CircleShape)
-                                                        .border(2.dp, neonPurple, shape = CircleShape)
-                                                    isToday -> Modifier.border(1.5.dp, Color(0xFF9C27B0), shape = CircleShape)
+                                                    isSelected -> Modifier.background(Color(0xFFE8DEF8), CircleShape).border(2.dp, neonPurple, CircleShape)
+                                                    isToday -> Modifier.border(1.5.dp, Color(0xFF9C27B0), CircleShape)
                                                     else -> Modifier
                                                 }
                                             )
                                             .clickable { selectedDay = dayNum },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                text = "$dayNum",
-                                                fontSize = 13.sp,
-                                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                                                color = when {
-                                                    isSelected -> darkPurple
-                                                    isToday -> Color(0xFF9C27B0)
-                                                    else -> Color.DarkGray
-                                                }
-                                            )
-                                            if (isToday) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(4.dp)
-                                                        .background(Color(0xFF9C27B0), shape = CircleShape)
-                                                )
+                                        Text(
+                                            text = "$dayNum",
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                                            color = when {
+                                                isSelected -> Color(0xFF6750A4)
+                                                isToday -> Color(0xFF9C27B0)
+                                                else -> Color.DarkGray
                                             }
-                                        }
+                                        )
                                     }
                                 } else {
                                     Spacer(modifier = Modifier.size(36.dp))
@@ -200,170 +145,42 @@ fun CalendarDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = onDismissRequest,
-                colors = ButtonDefaults.buttonColors(containerColor = neonPurple)
-            ) {
+            Button(onClick = onDismissRequest, colors = ButtonDefaults.buttonColors(containerColor = neonPurple)) {
                 Text("Close", color = darkBackground, fontWeight = FontWeight.Bold)
             }
         }
     )
 
     if (showMonthPicker) {
-        MonthPickerDialog(
-            selectedMonth = selectedMonth,
-            selectedYear = selectedYear,
-            selectedDay = selectedDay,
-            onMonthSelected = { month, day ->
-                selectedMonth = month
-                selectedDay = day
-            },
-            onDismiss = { showMonthPicker = false }
-        )
-    }
-
-    if (showYearPicker) {
-        YearPickerDialog(
-            selectedMonth = selectedMonth,
-            selectedYear = selectedYear,
-            selectedDay = selectedDay,
-            onYearSelected = { year, day ->
-                selectedYear = year
-                selectedDay = day
-            },
-            onDismiss = { showYearPicker = false }
-        )
-    }
-}
-
-@Composable
-private fun MonthPickerDialog(
-    selectedMonth: Int,
-    selectedYear: Int,
-    selectedDay: Int,
-    onMonthSelected: (Int, Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val darkBackground = Color(0xFF121212)
-    val cardBackground = Color(0xFF1E1E1E)
-    val neonPurple = Color(0xFFBB86FC)
-    val fullMonths = listOf(
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    )
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = cardBackground),
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(350.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Select Month", color = neonPurple, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    itemsIndexed(fullMonths) { index, monthName ->
-                        val isSelected = (index == selectedMonth)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (isSelected) neonPurple else Color(0xFF2C2C2C),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable {
-                                    val maxDays = Calendar.getInstance().apply {
-                                        set(Calendar.YEAR, selectedYear)
-                                        set(Calendar.MONTH, index)
-                                    }.getActualMaximum(Calendar.DAY_OF_MONTH)
-                                    val newDay = if (selectedDay > maxDays) maxDays else selectedDay
-                                    onMonthSelected(index, newDay)
-                                    onDismiss()
-                                }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = monthName,
-                                color = if (isSelected) darkBackground else Color.White,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
+        val fullMonths = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+        Dialog(onDismissRequest = { showMonthPicker = false }) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = cardBackground), modifier = Modifier.height(350.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Select Month", color = neonPurple, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LazyColumn {
+                        itemsIndexed(fullMonths) { idx, m ->
+                            Box(modifier = Modifier.fillMaxWidth().clickable { selectedMonth = idx; showMonthPicker = false }.padding(12.dp)) {
+                                Text(m, color = Color.White)
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 
-@Composable
-private fun YearPickerDialog(
-    selectedMonth: Int,
-    selectedYear: Int,
-    selectedDay: Int,
-    onYearSelected: (Int, Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val darkBackground = Color(0xFF121212)
-    val cardBackground = Color(0xFF1E1E1E)
-    val neonPurple = Color(0xFFBB86FC)
-    val yearsList = (1960..2100).toList()
-    val initialIndex = (selectedYear - 1960).coerceIn(0, yearsList.size - 1)
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = cardBackground),
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(380.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Select Year (1960 - 2100)", color = neonPurple, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyColumn(
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(yearsList) { year ->
-                        val isSelected = (year == selectedYear)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (isSelected) neonPurple else Color(0xFF2C2C2C),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable {
-                                    val maxDays = Calendar.getInstance().apply {
-                                        set(Calendar.YEAR, year)
-                                        set(Calendar.MONTH, selectedMonth)
-                                    }.getActualMaximum(Calendar.DAY_OF_MONTH)
-                                    val newDay = if (selectedDay > maxDays) maxDays else selectedDay
-                                    onYearSelected(year, newDay)
-                                    onDismiss()
-                                }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "$year",
-                                color = if (isSelected) darkBackground else Color.White,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
+    if (showYearPicker) {
+        Dialog(onDismissRequest = { showYearPicker = false }) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = cardBackground), modifier = Modifier.height(350.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Select Year", color = neonPurple, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LazyColumn {
+                        items((1960..2100).toList()) { yr ->
+                            Box(modifier = Modifier.fillMaxWidth().clickable { selectedYear = yr; showYearPicker = false }.padding(12.dp)) {
+                                Text("$yr", color = Color.White)
+                            }
                         }
                     }
                 }
