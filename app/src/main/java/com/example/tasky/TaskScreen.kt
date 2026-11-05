@@ -2,6 +2,7 @@ package com.example.tasky
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +44,7 @@ fun TaskScreen(
             .fillMaxSize()
             .background(darkBackground)
     ) {
-        // MAIN CONTENT AREA (Swaps based on selected tab)
+        // MAIN CONTENT AREA
         Box(modifier = Modifier.weight(1f)) {
             when (selectedTab) {
                 "Tasks" -> {
@@ -69,7 +70,7 @@ fun TaskScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Tasks Area: 2 Light Theme Blocks (Today & Tomorrow)
+                        // Single Tasks Area
                         Box(modifier = Modifier.weight(1f)) {
                             TasksTabContent(userEmail = userEmail)
                         }
@@ -142,7 +143,7 @@ fun TaskScreen(
 }
 
 // ==========================================
-// TASKS TAB CONTENT: 2 Light Theme Blocks (Today & Tomorrow)
+// TASKS TAB CONTENT: Single Unified List
 // ==========================================
 @Composable
 fun TasksTabContent(userEmail: String) {
@@ -150,9 +151,13 @@ fun TasksTabContent(userEmail: String) {
     val dao = remember { AppDatabase.getDatabase(context).taskDao() }
     val coroutineScope = rememberCoroutineScope()
 
-    val tasks by dao.getTasksByUser(userEmail).collectAsState(initial = emptyList())
+    val prefs = remember { context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE) }
+    val isAccountSynced = remember(userEmail) { prefs.getBoolean("${userEmail}_is_synced", false) }
 
-    var addingCategory by remember { mutableStateOf<String?>(null) } // "Today" or "Tomorrow"
+    val rawTasks by dao.getTasksByUser(userEmail).collectAsState(initial = emptyList<TaskEntity>())
+    val tasks = rawTasks.sortedWith(compareBy({ !it.isImportant }, { it.id }))
+
+    var showAddTaskDialog by remember { mutableStateOf(false) }
 
     // Dialog Input States
     var newTaskInputText by remember { mutableStateOf("") }
@@ -160,11 +165,16 @@ fun TasksTabContent(userEmail: String) {
     var taskDate by remember { mutableStateOf("") }
     var selectedDays by remember { mutableStateOf(setOf<String>()) }
     var isImportant by remember { mutableStateOf(false) }
-    var isSyncEnabled by remember { mutableStateOf(true) }
+    var isSyncEnabled by remember { mutableStateOf(isAccountSynced) }
+
+    // Task Conflict Resolution States
+    var conflictingTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var pendingTaskToInsert by remember { mutableStateOf<TaskEntity?>(null) }
 
     val neonPurple = Color(0xFFBB86FC)
     val cardBackground = Color(0xFF1E1E1E)
     val lightGray = Color(0xFFE0E0E0)
+    val lightThemeBg = Color(0xFFF4F4F6)
 
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
@@ -183,16 +193,13 @@ fun TasksTabContent(userEmail: String) {
             },
             cal.get(Calendar.HOUR_OF_DAY),
             cal.get(Calendar.MINUTE),
-            false // 12-hour AM/PM dial with circular clock
+            false
         ).show()
     }
 
     // Calendar Date Picker
     fun openDatePicker() {
         val cal = Calendar.getInstance()
-        if (addingCategory == "Tomorrow") {
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        }
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
@@ -209,73 +216,161 @@ fun TasksTabContent(userEmail: String) {
         ).show()
     }
 
-    val todayTasks = tasks.filter { !it.isTomorrow }
-    val tomorrowTasks = tasks.filter { it.isTomorrow }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = lightThemeBg),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                if (tasks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No tasks added",
+                            color = Color.Gray,
+                            fontSize = 16.sp
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        items(tasks, key = { it.id }) { task ->
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (task.isImportant) Color(0xFFFFF0F0) else Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                border = if (task.isImportant) BorderStroke(1.dp, Color(0xFFFF8888)) else null,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = task.isDone,
+                                        onCheckedChange = {
+                                            coroutineScope.launch { dao.updateTask(task.copy(isDone = !task.isDone)) }
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = Color(0xFF9C27B0),
+                                            checkmarkColor = Color.White
+                                        )
+                                    )
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // BLOCK 1: TODAY'S TASKS (Light Theme)
-        TaskBlock(
-            title = "Today's Tasks",
-            category = "Today",
-            tasks = todayTasks,
-            onAddClick = {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(start = 4.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = task.title,
+                                                color = if (task.isDone) Color.Gray else Color.Black,
+                                                fontSize = 15.sp,
+                                                fontWeight = if (task.isImportant) FontWeight.Bold else FontWeight.Normal,
+                                                textDecoration = if (task.isDone) TextDecoration.LineThrough else TextDecoration.None
+                                            )
+
+                                            if (task.isImportant) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .background(Color(0xFFFF4D4D), shape = RoundedCornerShape(4.dp))
+                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "IMPORTANT 🔥",
+                                                        color = Color.White,
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        val details = listOfNotNull(
+                                            if (task.time.isNotBlank()) "🕒 ${task.time}" else null,
+                                            if (task.date.isNotBlank()) "📅 ${task.date}" else null,
+                                            if (task.repeat.isNotBlank()) "🔁 ${task.repeat}" else null
+                                        ).joinToString("  |  ")
+
+                                        if (details.isNotBlank()) {
+                                            Text(
+                                                text = details,
+                                                color = Color.Gray,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(onClick = {
+                                        coroutineScope.launch { dao.deleteTask(task) }
+                                    }) {
+                                        Text(
+                                            text = "✕",
+                                            color = Color.Gray,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // CENTER FLOATING PLUS BUTTON
+        FloatingActionButton(
+            onClick = {
                 val cal = Calendar.getInstance()
                 newTaskInputText = ""
                 taskTime = timeFormat.format(cal.time)
                 taskDate = dateFormat.format(cal.time)
                 selectedDays = emptySet()
                 isImportant = false
-                isSyncEnabled = true
-                addingCategory = "Today"
+                isSyncEnabled = isAccountSynced
+                showAddTaskDialog = true
             },
-            onToggleDone = { task ->
-                coroutineScope.launch { dao.updateTask(task.copy(isDone = !task.isDone)) }
-            },
-            onDelete = { task ->
-                coroutineScope.launch { dao.deleteTask(task) }
-            },
-            modifier = Modifier.weight(1f)
-        )
-
-        // BLOCK 2: TOMORROW'S TASKS (Light Theme)
-        TaskBlock(
-            title = "Tomorrow's Tasks",
-            category = "Tomorrow",
-            tasks = tomorrowTasks,
-            onAddClick = {
-                val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
-                newTaskInputText = ""
-                taskTime = "10:00 AM"
-                taskDate = dateFormat.format(cal.time)
-                selectedDays = emptySet()
-                isImportant = false
-                isSyncEnabled = true
-                addingCategory = "Tomorrow"
-            },
-            onToggleDone = { task ->
-                coroutineScope.launch { dao.updateTask(task.copy(isDone = !task.isDone)) }
-            },
-            onDelete = { task ->
-                coroutineScope.launch { dao.deleteTask(task) }
-            },
-            modifier = Modifier.weight(1f)
-        )
+            containerColor = neonPurple,
+            contentColor = Color(0xFF121212),
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp)
+                .size(64.dp)
+        ) {
+            Text(
+                text = "+",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Light
+            )
+        }
     }
 
     // ENHANCED ADD TASK DIALOG
-    if (addingCategory != null) {
-        val isTomorrowBlock = addingCategory == "Tomorrow"
+    if (showAddTaskDialog) {
         val weekDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
         AlertDialog(
-            onDismissRequest = { addingCategory = null },
+            onDismissRequest = { showAddTaskDialog = false },
             containerColor = cardBackground,
             title = {
                 Text(
-                    text = "Add Task ($addingCategory)",
+                    text = "Add Task",
                     color = neonPurple,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -301,7 +396,7 @@ fun TasksTabContent(userEmail: String) {
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Time (Circular Clock) & Date (Calendar) Pickers
+                    // Time & Date Pickers
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -383,7 +478,7 @@ fun TasksTabContent(userEmail: String) {
                         }
                     }
 
-                    // Category Toggle Slider (Normal / Important Work)
+                    // Category Toggle Slider
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = if (isImportant) Color(0xFF33141A) else Color(0xFF2C2C2C)
@@ -399,7 +494,7 @@ fun TasksTabContent(userEmail: String) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (isImportant) "Category: Important Work 🔥" else "Category: Normal Work",
+                                text = if (isImportant) "Important 🔥" else "Normal Work",
                                 color = if (isImportant) Color(0xFFFF6B6B) else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
@@ -415,7 +510,7 @@ fun TasksTabContent(userEmail: String) {
                         }
                     }
 
-                    // Cloud Sync ON/OFF Toggle Button
+                    // Cloud Sync Switch Button
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2C)),
                         shape = RoundedCornerShape(10.dp),
@@ -436,7 +531,10 @@ fun TasksTabContent(userEmail: String) {
                             )
                             Switch(
                                 checked = isSyncEnabled,
-                                onCheckedChange = { isSyncEnabled = it },
+                                onCheckedChange = {
+                                    if (isAccountSynced) isSyncEnabled = it
+                                },
+                                enabled = isAccountSynced,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = Color(0xFF4CAF50)
@@ -450,22 +548,29 @@ fun TasksTabContent(userEmail: String) {
                 Button(
                     onClick = {
                         if (newTaskInputText.isNotBlank()) {
-                            val repeatText = if (selectedDays.isNotEmpty()) selectedDays.joinToString(", ") else addingCategory!!
-                            coroutineScope.launch {
-                                dao.insertTask(
-                                    TaskEntity(
-                                        title = newTaskInputText,
-                                        isDone = false,
-                                        isTomorrow = isTomorrowBlock,
-                                        userEmail = userEmail,
-                                        time = taskTime,
-                                        date = taskDate,
-                                        repeat = repeatText,
-                                        isImportant = isImportant
-                                    )
-                                )
+                            val repeatText = if (selectedDays.isNotEmpty()) selectedDays.joinToString(", ") else "None"
+                            val newEntity = TaskEntity(
+                                title = newTaskInputText,
+                                isDone = false,
+                                isTomorrow = false,
+                                userEmail = userEmail,
+                                time = taskTime,
+                                date = taskDate,
+                                repeat = repeatText,
+                                isImportant = isImportant
+                            )
+
+                            val existingMatch = rawTasks.find {
+                                it.time == taskTime && it.date == taskDate
                             }
-                            addingCategory = null
+
+                            if (existingMatch != null && isSyncEnabled) {
+                                conflictingTask = existingMatch
+                                pendingTaskToInsert = newEntity
+                            } else {
+                                coroutineScope.launch { dao.insertTask(newEntity) }
+                            }
+                            showAddTaskDialog = false
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = neonPurple)
@@ -474,163 +579,61 @@ fun TasksTabContent(userEmail: String) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { addingCategory = null }) {
+                TextButton(onClick = { showAddTaskDialog = false }) {
                     Text("Cancel", color = Color.Gray)
                 }
             }
         )
     }
-}
 
-// ==========================================
-// LIGHT THEME TASK BLOCK COMPONENT
-// ==========================================
-@Composable
-fun TaskBlock(
-    title: String,
-    category: String,
-    tasks: List<TaskEntity>,
-    onAddClick: () -> Unit,
-    onToggleDone: (TaskEntity) -> Unit,
-    onDelete: (TaskEntity) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F4F6)), // Light Theme Background
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            // Header Row: Title & Top-Right Plus (+) Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+    // CONFLICT RESOLUTION DIALOG
+    if (conflictingTask != null && pendingTaskToInsert != null) {
+        AlertDialog(
+            onDismissRequest = {
+                conflictingTask = null
+                pendingTaskToInsert = null
+            },
+            containerColor = cardBackground,
+            title = {
                 Text(
-                    text = title,
-                    fontSize = 18.sp,
+                    text = "Already a task added.",
+                    color = Color(0xFFFF6B6B),
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF121212)
+                    fontSize = 18.sp
                 )
-                IconButton(
-                    onClick = onAddClick,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(Color(0xFFBB86FC), shape = CircleShape)
-                ) {
-                    Text(
-                        text = "+",
-                        color = Color(0xFF121212),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Task List
-            if (tasks.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No tasks added for $category",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(tasks, key = { it.id }) { task ->
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (task.isImportant) Color(0xFFFFF0F0) else Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            border = if (task.isImportant) BorderStroke(1.dp, Color(0xFFFF8888)) else null,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = task.isDone,
-                                    onCheckedChange = { onToggleDone(task) },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = Color(0xFF9C27B0),
-                                        checkmarkColor = Color.White
-                                    )
-                                )
-
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(start = 4.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = task.title,
-                                            color = if (task.isDone) Color.Gray else Color.Black,
-                                            fontSize = 15.sp,
-                                            fontWeight = if (task.isImportant) FontWeight.Bold else FontWeight.Normal,
-                                            textDecoration = if (task.isDone) TextDecoration.LineThrough else TextDecoration.None
-                                        )
-
-                                        if (task.isImportant) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .background(Color(0xFFFF4D4D), shape = RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                                            ) {
-                                                Text(
-                                                    text = "IMPORTANT 🔥",
-                                                    color = Color.White,
-                                                    fontSize = 8.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    val details = buildList {
-                                        if (task.time.isNotBlank()) add("🕒 ${task.time}")
-                                        if (task.date.isNotBlank()) add("📅 ${task.date}")
-                                        if (task.repeat.isNotBlank()) add("🔁 ${task.repeat}")
-                                    }.joinToString("  |  ")
-
-                                    if (details.isNotBlank()) {
-                                        Text(
-                                            text = details,
-                                            color = Color.Gray,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                }
-
-                                IconButton(onClick = { onDelete(task) }) {
-                                    Text(
-                                        text = "✕",
-                                        color = Color.Gray,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+            },
+            text = {
+                Text(
+                    text = "Already a task added at ${conflictingTask?.time}. Do you want to replace it?",
+                    color = lightGray,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            dao.deleteTask(conflictingTask!!)
+                            dao.insertTask(pendingTaskToInsert!!)
+                            conflictingTask = null
+                            pendingTaskToInsert = null
                         }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = neonPurple)
+                ) {
+                    Text("Yes", color = Color(0xFF121212), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        conflictingTask = null
+                        pendingTaskToInsert = null
                     }
+                ) {
+                    Text("No", color = Color.Gray)
                 }
             }
-        }
+        )
     }
 }
