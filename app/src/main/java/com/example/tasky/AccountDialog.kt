@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.database.FirebaseDatabase
 
 @Composable
 fun AccountDialog(
@@ -25,6 +26,7 @@ fun AccountDialog(
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("TaskyAuthPrefs", Context.MODE_PRIVATE) }
+    val firebaseDb = remember { FirebaseDatabase.getInstance().reference }
 
     val savedName = remember { prefs.getString("${userEmail}_name", "New User") ?: "New User" }
     val savedPhone = remember { prefs.getString("${userEmail}_phone", "") ?: "" }
@@ -46,6 +48,7 @@ fun AccountDialog(
     var generatedCode by remember { mutableStateOf("") }
     var inputCode by remember { mutableStateOf("") }
     var syncErrorMessage by remember { mutableStateOf<String?>(null) }
+    var isProcessing by remember { mutableStateOf(false) }
 
     val userInitial = userEmail.firstOrNull()?.uppercase() ?: "U"
     val cardBackground = Color(0xFF1E1E1E)
@@ -54,17 +57,23 @@ fun AccountDialog(
     val lightGray = Color(0xFFE0E0E0)
     val errorRed = Color(0xFFCF6679)
 
-    // Function to generate a unique 4-digit system code and register it in global memory
-    fun generate4DigitCode(): String {
+    // Generate 4-digit code and save to Firebase Cloud Database
+    fun generate4DigitCode() {
         val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        var code: String
-        do {
-            code = (1..4).map { chars.random() }.joinToString("")
-        } while (prefs.contains("global_sync_code_$code"))
+        val code = (1..4).map { chars.random() }.joinToString("")
+        generatedCode = code
 
-        // Register code in system shared memory mapped to this creator user
-        prefs.edit().putString("global_sync_code_$code", userEmail).apply()
-        return code
+        val syncPayload = mapOf(
+            "creatorEmail" to userEmail,
+            "timestamp" to System.currentTimeMillis()
+        )
+
+        // Upload code to Cloud database
+        firebaseDb.child("sync_codes").child(code).setValue(syncPayload)
+            .addOnSuccessListener {
+                showSyncChoiceDialog = false
+                showGeneratedCodeDialog = true
+            }
     }
 
     AlertDialog(
@@ -117,7 +126,7 @@ fun AccountDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Want to Sync Section
+                // Sync Status Card
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSynced) Color(0xFF1B3A27) else Color(0xFF2C2C2C)
@@ -147,14 +156,8 @@ fun AccountDialog(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             TextButton(onClick = {
-                                // Unlink both accounts
-                                if (syncPartnerEmail.isNotBlank()) {
-                                    prefs.edit().putBoolean("${syncPartnerEmail}_is_synced", false).apply()
-                                    prefs.edit().remove("${syncPartnerEmail}_sync_code").apply()
-                                    prefs.edit().remove("${syncPartnerEmail}_sync_partner").apply()
-                                }
                                 if (syncPartnerCode.isNotBlank()) {
-                                    prefs.edit().remove("global_sync_code_$syncPartnerCode").apply()
+                                    firebaseDb.child("sync_codes").child(syncPartnerCode).removeValue()
                                 }
                                 isSynced = false
                                 syncPartnerCode = ""
@@ -190,7 +193,7 @@ fun AccountDialog(
         }
     )
 
-    // Option Dialog: Send Sync Code OR Received a Code?
+    // 1. Choose Option Dialog
     if (showSyncChoiceDialog) {
         AlertDialog(
             onDismissRequest = { showSyncChoiceDialog = false },
@@ -199,11 +202,7 @@ fun AccountDialog(
             text = { Text("Choose how you want to connect with your partner:", color = lightGray) },
             confirmButton = {
                 Button(
-                    onClick = {
-                        generatedCode = generate4DigitCode()
-                        showSyncChoiceDialog = false
-                        showGeneratedCodeDialog = true
-                    },
+                    onClick = { generate4DigitCode() },
                     colors = ButtonDefaults.buttonColors(containerColor = neonPurple)
                 ) {
                     Text("Send Sync Code?", color = darkBackground, fontWeight = FontWeight.Bold)
@@ -224,7 +223,7 @@ fun AccountDialog(
         )
     }
 
-    // Generated Code Dialog
+    // 2. Display Generated Code
     if (showGeneratedCodeDialog) {
         AlertDialog(
             onDismissRequest = { showGeneratedCodeDialog = false },
@@ -247,7 +246,6 @@ fun AccountDialog(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
                         )
                     }
-                    Text("Waiting for partner to enter code...", color = Color.Gray, fontSize = 11.sp)
                 }
             },
             confirmButton = {
@@ -261,7 +259,7 @@ fun AccountDialog(
         )
     }
 
-    // Enter Code Dialog (Strict verification against system-generated codes)
+    // 3. Enter Code & Query Cloud Database
     if (showEnterCodeDialog) {
         AlertDialog(
             onDismissRequest = { showEnterCodeDialog = false },
@@ -300,35 +298,40 @@ fun AccountDialog(
                             return@Button
                         }
 
-                        // Real verification: Lookup code in system database/shared preferences
-                        val creatorEmail = prefs.getString("global_sync_code_$cleanCode", null)
+                        isProcessing = true
+                        // Query Firebase Cloud database across devices
+                        firebaseDb.child("sync_codes").child(cleanCode).get()
+                            .addOnSuccessListener { snapshot ->
+                                isProcessing = false
+                                if (snapshot.exists()) {
+                                    val creatorEmail = snapshot.child("creatorEmail").getValue(String::class.java) ?: ""
+                                    if (creatorEmail.equals(userEmail, ignoreCase = true)) {
+                                        syncErrorMessage = "You cannot sync with your own code!"
+                                    } else {
+                                        // Real Cloud Sync Success
+                                        isSynced = true
+                                        syncPartnerCode = cleanCode
+                                        syncPartnerEmail = creatorEmail
 
-                        if (creatorEmail == null) {
-                            syncErrorMessage = "Invalid code! No account generated this code."
-                        } else if (creatorEmail.equals(userEmail, ignoreCase = true)) {
-                            syncErrorMessage = "You cannot sync with your own code!"
-                        } else {
-                            // REAL SYNC SUCCESS: Link both accounts mutually
-                            isSynced = true
-                            syncPartnerCode = cleanCode
-                            syncPartnerEmail = creatorEmail
+                                        prefs.edit().putBoolean("${userEmail}_is_synced", true).apply()
+                                        prefs.edit().putString("${userEmail}_sync_code", cleanCode).apply()
+                                        prefs.edit().putString("${userEmail}_sync_partner", creatorEmail).apply()
 
-                            // Save sync state for current user
-                            prefs.edit().putBoolean("${userEmail}_is_synced", true).apply()
-                            prefs.edit().putString("${userEmail}_sync_code", cleanCode).apply()
-                            prefs.edit().putString("${userEmail}_sync_partner", creatorEmail).apply()
-
-                            // Save sync state for partner user
-                            prefs.edit().putBoolean("${creatorEmail}_is_synced", true).apply()
-                            prefs.edit().putString("${creatorEmail}_sync_code", cleanCode).apply()
-                            prefs.edit().putString("${creatorEmail}_sync_partner", userEmail).apply()
-
-                            showEnterCodeDialog = false
-                        }
+                                        showEnterCodeDialog = false
+                                    }
+                                } else {
+                                    syncErrorMessage = "Invalid code! No account generated this code."
+                                }
+                            }
+                            .addOnFailureListener {
+                                isProcessing = false
+                                syncErrorMessage = "Network error! Check internet connection."
+                            }
                     },
+                    enabled = !isProcessing,
                     colors = ButtonDefaults.buttonColors(containerColor = neonPurple)
                 ) {
-                    Text("Sync Account", color = darkBackground, fontWeight = FontWeight.Bold)
+                    Text(if (isProcessing) "Checking..." else "Sync Account", color = darkBackground, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
