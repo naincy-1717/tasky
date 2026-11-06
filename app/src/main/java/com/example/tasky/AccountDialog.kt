@@ -295,38 +295,37 @@ fun AccountDialog(
                         val cleanCode = inputCode.trim().uppercase()
                         if (cleanCode.length != 4) {
                             syncErrorMessage = "Code must be exactly 4 characters!"
-                            return@Button
-                        }
+                        } else {
+                            isProcessing = true
+                            // Query Firebase Cloud database across devices
+                            firebaseDb.child("sync_codes").child(cleanCode).get()
+                                .addOnSuccessListener { snapshot ->
+                                    isProcessing = false
+                                    if (snapshot.exists()) {
+                                        val creatorEmail = snapshot.child("creatorEmail").getValue(String::class.java) ?: ""
+                                        if (creatorEmail.equals(userEmail, ignoreCase = true)) {
+                                            syncErrorMessage = "You cannot sync with your own code!"
+                                        } else {
+                                            // Real Cloud Sync Success
+                                            isSynced = true
+                                            syncPartnerCode = cleanCode
+                                            syncPartnerEmail = creatorEmail
 
-                        isProcessing = true
-                        // Query Firebase Cloud database across devices
-                        firebaseDb.child("sync_codes").child(cleanCode).get()
-                            .addOnSuccessListener { snapshot ->
-                                isProcessing = false
-                                if (snapshot.exists()) {
-                                    val creatorEmail = snapshot.child("creatorEmail").getValue(String::class.java) ?: ""
-                                    if (creatorEmail.equals(userEmail, ignoreCase = true)) {
-                                        syncErrorMessage = "You cannot sync with your own code!"
+                                            prefs.edit().putBoolean("${userEmail}_is_synced", true).apply()
+                                            prefs.edit().putString("${userEmail}_sync_code", cleanCode).apply()
+                                            prefs.edit().putString("${userEmail}_sync_partner", creatorEmail).apply()
+
+                                            showEnterCodeDialog = false
+                                        }
                                     } else {
-                                        // Real Cloud Sync Success
-                                        isSynced = true
-                                        syncPartnerCode = cleanCode
-                                        syncPartnerEmail = creatorEmail
-
-                                        prefs.edit().putBoolean("${userEmail}_is_synced", true).apply()
-                                        prefs.edit().putString("${userEmail}_sync_code", cleanCode).apply()
-                                        prefs.edit().putString("${userEmail}_sync_partner", creatorEmail).apply()
-
-                                        showEnterCodeDialog = false
+                                        syncErrorMessage = "Invalid code! No account generated this code."
                                     }
-                                } else {
-                                    syncErrorMessage = "Invalid code! No account generated this code."
                                 }
-                            }
-                            .addOnFailureListener {
-                                isProcessing = false
-                                syncErrorMessage = "Network error! Check internet connection."
-                            }
+                                .addOnFailureListener {
+                                    isProcessing = false
+                                    syncErrorMessage = "Network error! Check internet connection."
+                                }
+                        }
                     },
                     enabled = !isProcessing,
                     colors = ButtonDefaults.buttonColors(containerColor = neonPurple)
