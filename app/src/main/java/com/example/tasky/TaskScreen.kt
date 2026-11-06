@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.google.firebase.database.FirebaseDatabase
 
 @Composable
 fun TaskScreen(
@@ -568,7 +569,29 @@ fun TasksTabContent(userEmail: String) {
                                 conflictingTask = existingMatch
                                 pendingTaskToInsert = newEntity
                             } else {
-                                coroutineScope.launch { dao.insertTask(newEntity) }
+                                coroutineScope.launch {
+                                    // 1. Save locally to Room DB
+                                    dao.insertTask(newEntity)
+
+                                    // 2. Upload to Firebase Cloud if Sync is ON
+                                    if (isSyncEnabled && isAccountSynced) {
+                                        val syncCode = prefs.getString("${userEmail}_sync_code", "") ?: ""
+                                        if (syncCode.isNotBlank()) {
+                                            val firebaseDb = FirebaseDatabase.getInstance().reference
+                                            val firebaseTask = mapOf(
+                                                "title" to newEntity.title,
+                                                "time" to newEntity.time,
+                                                "date" to newEntity.date,
+                                                "repeat" to newEntity.repeat,
+                                                "isImportant" to newEntity.isImportant,
+                                                "isDone" to newEntity.isDone,
+                                                "creatorEmail" to userEmail
+                                            )
+                                            // Save data under shared_tasks -> [4-DIGIT-CODE]
+                                            firebaseDb.child("shared_tasks").child(syncCode).push().setValue(firebaseTask)
+                                        }
+                                    }
+                                }
                             }
                             showAddTaskDialog = false
                         }
@@ -613,8 +636,28 @@ fun TasksTabContent(userEmail: String) {
                 Button(
                     onClick = {
                         coroutineScope.launch {
+                            // 1. Replace locally in Room DB
                             dao.deleteTask(conflictingTask!!)
                             dao.insertTask(pendingTaskToInsert!!)
+
+                            // 2. Upload the replacement to Firebase Cloud
+                            if (isAccountSynced) {
+                                val syncCode = prefs.getString("${userEmail}_sync_code", "") ?: ""
+                                if (syncCode.isNotBlank()) {
+                                    val firebaseDb = FirebaseDatabase.getInstance().reference
+                                    val firebaseTask = mapOf(
+                                        "title" to pendingTaskToInsert!!.title,
+                                        "time" to pendingTaskToInsert!!.time,
+                                        "date" to pendingTaskToInsert!!.date,
+                                        "repeat" to pendingTaskToInsert!!.repeat,
+                                        "isImportant" to pendingTaskToInsert!!.isImportant,
+                                        "isDone" to pendingTaskToInsert!!.isDone,
+                                        "creatorEmail" to userEmail
+                                    )
+                                    firebaseDb.child("shared_tasks").child(syncCode).push().setValue(firebaseTask)
+                                }
+                            }
+
                             conflictingTask = null
                             pendingTaskToInsert = null
                         }
